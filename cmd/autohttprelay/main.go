@@ -10,12 +10,11 @@ import (
     "os"
     "strings"
 
+    "github.com/hshimamoto/go-autohttprelay"
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
     "github.com/google/gopacket/pcap"
     "github.com/vishvananda/netlink"
-    "github.com/hshimamoto/go-iorelay"
-    "github.com/hshimamoto/go-session"
 )
 
 func isGlobal(ip net.IP) bool {
@@ -87,30 +86,16 @@ func initDummy() {
     }
 }
 
-type FwdServer struct {
-    Serv *session.Server
-    Addr string
-}
-
-var fwds []FwdServer = []FwdServer{}
+var fwds []*autohttprelay.RelayServer = []*autohttprelay.RelayServer{}
 
 func addFwdServer(addr string) {
-    serv, err := session.NewServer(addr, func(conn net.Conn) {
-	defer conn.Close()
-	pconn, err := session.Corkscrew(proxy, addr)
-	if err != nil {
-	    fmt.Println(err)
-	    return
-	}
-	defer pconn.Close()
-	iorelay.Relay(conn, pconn)
-    })
+    fwd, err := autohttprelay.NewRelayServer(proxy, addr)
     if err != nil {
 	fmt.Println(err)
 	return
     }
-    fwds = append(fwds, FwdServer{ Serv: serv, Addr: addr })
-    go serv.Run()
+    fwds = append(fwds, fwd)
+    go fwd.Run()
 }
 
 func process(ip net.IP, port layers.TCPPort) {
