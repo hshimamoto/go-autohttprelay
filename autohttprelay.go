@@ -80,7 +80,12 @@ func StartSYNCapture(name string, pipe chan SYNPacket) error {
     if err != nil {
 	return err
     }
-    err = handle.SetBPFFilter("tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn")
+    filter := "dst net not 127.0.0.0/8"
+    filter += " and dst net not 10.0.0.0/8"
+    filter += " and dst net not 172.16.0.0/12"
+    filter += " and dst net not 192.168.0.0/16"
+    filter += " and tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn"
+    err = handle.SetBPFFilter(filter)
     if err != nil {
 	return err
     }

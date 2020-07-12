@@ -16,21 +16,6 @@ import (
 )
 
 func isGlobal(ip net.IP) bool {
-    if ip[0] == 127 {
-	return false
-    }
-    if ip[0] == 10 {
-	return false
-    }
-    if ip[0] == 172 {
-	if (16 <= ip[1]) && (ip[1] <= 31) {
-	    return false
-	}
-	return true
-    }
-    if (ip[0] == 192) && (ip[1] == 168) {
-	return false
-    }
     if ip.String() == proxyip {
 	return false
     }
