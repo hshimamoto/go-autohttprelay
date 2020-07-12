@@ -100,21 +100,15 @@ func main() {
     dummy = "autohttprelay"
     initDummy()
 
-    pipe := make(chan autohttprelay.SYNPacket)
-
-    err := autohttprelay.StartSYNCapture(name, pipe)
-    if err != nil {
-	fmt.Println(err)
-    }
-    err = autohttprelay.StartSYNCapture("lo", pipe)
-    if err != nil {
-	fmt.Println(err)
-    }
-
-    for syn := range pipe {
-	fmt.Printf("-> %s:%s\n", syn.IP, syn.Port)
+    manager, err := autohttprelay.NewAutoRelayManager(name, func(syn autohttprelay.SYNPacket) {
+	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
 	if isGlobal(syn.IP) {
 	    process(syn.IP, syn.Port)
 	}
+    })
+    if err != nil {
+	fmt.Println(err)
+	return
     }
+    manager.Run()
 }

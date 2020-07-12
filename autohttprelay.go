@@ -127,3 +127,29 @@ func NewDummyDevice(name string) (netlink.Link, error) {
 
     return link, nil
 }
+
+type AutoRelayManager struct {
+    servers []*RelayServer
+    pipe chan SYNPacket
+    handler func(SYNPacket)
+}
+
+func NewAutoRelayManager(inf string, handler func(SYNPacket)) (*AutoRelayManager, error) {
+    manager := &AutoRelayManager{}
+    manager.servers = []*RelayServer{}
+    manager.pipe = make(chan SYNPacket)
+    manager.handler = handler
+    if err := StartSYNCapture(inf, manager.pipe); err != nil {
+	return nil, err
+    }
+    if err := StartSYNCapture("lo", manager.pipe); err != nil {
+	return nil, err
+    }
+    return manager, nil
+}
+
+func (manager *AutoRelayManager)Run() {
+    for syn := range manager.pipe {
+	manager.handler(syn)
+    }
+}
