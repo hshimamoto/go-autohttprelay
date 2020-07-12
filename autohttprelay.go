@@ -153,6 +153,7 @@ type AutoRelayManager struct {
     ips []*RelayIP
     pipe chan SYNPacket
     handler func(SYNPacket)
+    inf string
     proxy string
     proxyip string
 }
@@ -163,16 +164,21 @@ func NewAutoRelayManager(inf, proxy string, handler func(SYNPacket)) (*AutoRelay
     manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
     manager.handler = handler
+    manager.inf = inf;
     manager.proxy = proxy
     a := strings.Split(proxy, ":")
     manager.proxyip = a[0]
-    if err := StartSYNCapture(inf, manager.pipe); err != nil {
-	return nil, err
+    return manager, nil
+}
+
+func (manager *AutoRelayManager)Prepare() error {
+    if err := StartSYNCapture(manager.inf, manager.pipe); err != nil {
+	return err
     }
     if err := StartSYNCapture("lo", manager.pipe); err != nil {
-	return nil, err
+	return err
     }
-    return manager, nil
+    return nil
 }
 
 func (manager *AutoRelayManager)Run() {

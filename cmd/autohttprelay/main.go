@@ -64,5 +64,10 @@ func main() {
 	fmt.Println(err)
 	return
     }
+    err = manager.Prepare()
+    if err != nil {
+	fmt.Println(err)
+	return
+    }
     manager.Run()
 }
