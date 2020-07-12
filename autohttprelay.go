@@ -7,6 +7,7 @@ package autohttprelay
 import (
     "fmt"
     "net"
+    "strings"
     "time"
 
     "github.com/google/gopacket"
@@ -143,14 +144,19 @@ type AutoRelayManager struct {
     ips []*RelayIP
     pipe chan SYNPacket
     handler func(SYNPacket)
+    proxy string
+    proxyip string
 }
 
-func NewAutoRelayManager(inf string, handler func(SYNPacket)) (*AutoRelayManager, error) {
+func NewAutoRelayManager(inf, proxy string, handler func(SYNPacket)) (*AutoRelayManager, error) {
     manager := &AutoRelayManager{}
     manager.servers = []*RelayServer{}
     manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
     manager.handler = handler
+    manager.proxy = proxy
+    a := strings.Split(proxy, ":")
+    manager.proxyip = a[0]
     if err := StartSYNCapture(inf, manager.pipe); err != nil {
 	return nil, err
     }
@@ -162,11 +168,14 @@ func NewAutoRelayManager(inf string, handler func(SYNPacket)) (*AutoRelayManager
 
 func (manager *AutoRelayManager)Run() {
     for syn := range manager.pipe {
+	if syn.IP.String() == manager.proxyip {
+	    continue
+	}
 	manager.handler(syn)
     }
 }
 
-func (manager *AutoRelayManager)AddServer(proxy string, ip net.IP, port layers.TCPPort) {
+func (manager *AutoRelayManager)AddServer(ip net.IP, port layers.TCPPort) {
     addr := fmt.Sprintf("%s:%d", ip, port)
     for _, server := range manager.servers {
 	if server.Addr == addr {
@@ -174,7 +183,7 @@ func (manager *AutoRelayManager)AddServer(proxy string, ip net.IP, port layers.T
 	}
     }
     rip := &RelayIP{ IP: ip, Last: time.Now() }
-    server, err := NewRelayServer(proxy, rip, port)
+    server, err := NewRelayServer(manager.proxy, rip, port)
     if err != nil {
 	return
     }

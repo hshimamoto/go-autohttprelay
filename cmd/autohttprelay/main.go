@@ -14,14 +14,6 @@ import (
     "github.com/vishvananda/netlink"
 )
 
-func isGlobal(ip net.IP) bool {
-    if ip.String() == proxyip {
-	return false
-    }
-    // TODO check multicast
-    return true
-}
-
 func dummyIP(ip net.IP) {
     link, err := netlink.LinkByName(dummy)
     if err != nil {
@@ -54,9 +46,6 @@ func initDummy() {
     }
     for _, a := range addrs {
 	fmt.Println(a)
-	if isGlobal(a.IP) == false {
-	    continue
-	}
 	// remove ip
 	netlink.AddrDel(link, &a)
     }
@@ -81,12 +70,10 @@ func main() {
 
     var manager *autohttprelay.AutoRelayManager
 
-    manager, err := autohttprelay.NewAutoRelayManager(name, func(syn autohttprelay.SYNPacket) {
+    manager, err := autohttprelay.NewAutoRelayManager(name, proxy, func(syn autohttprelay.SYNPacket) {
 	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
-	if isGlobal(syn.IP) {
-	    dummyIP(syn.IP)
-	    manager.AddServer(proxy, syn.IP, syn.Port)
-	}
+	dummyIP(syn.IP)
+	manager.AddServer(syn.IP, syn.Port)
     })
     if err != nil {
 	fmt.Println(err)
