@@ -124,14 +124,23 @@ func StartSYNCapture(name string, pipe chan SYNPacket) error {
 }
 
 func NewDummyDevice(name string) (netlink.Link, error) {
+    // remove first
+    link, err := netlink.LinkByName(name)
+    if err == nil {
+	err = netlink.LinkDel(link)
+	if err != nil {
+	    return nil, err
+	}
+    }
+
+    // add dummy device anyway
     dmy := &netlink.Dummy{}
     dmy.Name = name
-    // add dummy device anyway
     netlink.LinkAdd(dmy)
     netlink.LinkSetUp(dmy)
 
     // check it
-    link, err := netlink.LinkByName(name)
+    link, err = netlink.LinkByName(name)
     if err != nil {
 	return nil, err
     }

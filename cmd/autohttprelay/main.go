@@ -32,25 +32,6 @@ func dummyIP(ip net.IP) {
     }
 }
 
-func initDummy() {
-    link, err := autohttprelay.NewDummyDevice(dummy)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-
-    addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    for _, a := range addrs {
-	fmt.Println(a)
-	// remove ip
-	netlink.AddrDel(link, &a)
-    }
-}
-
 var dummy string
 var proxy string
 var proxyip string
@@ -66,11 +47,15 @@ func main() {
     proxyip = a[0]
 
     dummy = "autohttprelay"
-    initDummy()
+    _, err := autohttprelay.NewDummyDevice(dummy)
+    if err != nil {
+	fmt.Println(err)
+	return
+    }
 
     var manager *autohttprelay.AutoRelayManager
 
-    manager, err := autohttprelay.NewAutoRelayManager(name, proxy, func(syn autohttprelay.SYNPacket) {
+    manager, err = autohttprelay.NewAutoRelayManager(name, proxy, func(syn autohttprelay.SYNPacket) {
 	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
 	dummyIP(syn.IP)
 	manager.AddServer(syn.IP, syn.Port)
