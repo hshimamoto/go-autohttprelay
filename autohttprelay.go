@@ -29,27 +29,27 @@ func (rip *RelayIP)String() string {
 
 type RelayServer struct {
     Serv *session.Server
-    Proxy string
     Addr string
     IP *RelayIP
     Port layers.TCPPort
     Last time.Time
+    Connecter func(string) (net.Conn, error)
 }
 
-func NewRelayServer(proxy string, ip *RelayIP, port layers.TCPPort) (*RelayServer, error) {
+func NewRelayServer(ip *RelayIP, port layers.TCPPort, connecter func(string) (net.Conn, error)) (*RelayServer, error) {
     addr := fmt.Sprintf("%s:%d", ip, port)
     rs := &RelayServer{
-	Proxy: proxy,
 	Addr: addr,
 	IP: ip,
 	Port: port,
 	Last: time.Now(),
+	Connecter: connecter,
     }
     serv, err := session.NewServer(addr, func(conn net.Conn) {
 	rs.Last = time.Now()
 	rs.IP.Last = time.Now()
 	defer conn.Close()
-	pconn, err := session.Corkscrew(proxy, addr)
+	pconn, err := rs.Connecter(addr)
 	if err != nil {
 	    return
 	}
@@ -153,6 +153,7 @@ type AutoRelayManager struct {
     ips []*RelayIP
     pipe chan SYNPacket
     handler func(SYNPacket)
+    connecter func(string) (net.Conn, error)
     inf string
     proxy string
     proxyip string
@@ -166,6 +167,7 @@ func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
     manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
     manager.handler = manager.defAutoRelayHandler
+    manager.connecter = manager.defAutoRelayConnecter
     manager.inf = inf;
     manager.proxy = proxy
     manager.dummy = "autohttprelay"
@@ -184,6 +186,15 @@ func (manager *AutoRelayManager)defAutoRelayHandler(syn SYNPacket) {
 
 func (manager *AutoRelayManager)SetHandler(handler func(SYNPacket)) {
     manager.handler = handler
+}
+
+func (manager *AutoRelayManager)defAutoRelayConnecter(addr string) (net.Conn, error) {
+    // use proxy
+    return session.Corkscrew(manager.proxy, addr)
+}
+
+func (manager *AutoRelayManager)SetAutoRelayConnecter(connecter func(string)(net.Conn, error)) {
+    manager.connecter = connecter
 }
 
 func (manager *AutoRelayManager)Prepare() error {
@@ -218,7 +229,7 @@ func (manager *AutoRelayManager)AddServer(ip net.IP, port layers.TCPPort) {
 	}
     }
     rip := &RelayIP{ IP: ip, Last: time.Now() }
-    server, err := NewRelayServer(manager.proxy, rip, port)
+    server, err := NewRelayServer(rip, port, manager.connecter)
     if err != nil {
 	return
     }
