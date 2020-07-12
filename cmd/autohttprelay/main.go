@@ -97,14 +97,14 @@ func addFwdServer(addr string) {
 }
 
 func process(ip net.IP, port layers.TCPPort) {
-    fmt.Printf(" launch %s:%s\n", ip, port)
-    dummyIP(ip)
     addr := fmt.Sprintf("%s:%d", ip, port)
     for _, fwd := range fwds {
 	if fwd.Addr == addr {
 	    return
 	}
     }
+    fmt.Printf(" launch %s:%s\n", ip, port)
+    dummyIP(ip)
     addFwdServer(addr)
 }
 
