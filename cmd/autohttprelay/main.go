@@ -6,33 +6,10 @@ package main
 
 import (
     "fmt"
-    "net"
     "os"
 
     "github.com/hshimamoto/go-autohttprelay"
-    "github.com/vishvananda/netlink"
 )
-
-func dummyIP(ip net.IP) {
-    link, err := netlink.LinkByName(dummy)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    addr, err := netlink.ParseAddr(ip.String() + "/32")
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    err = netlink.AddrAdd(link, addr)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-}
-
-var dummy string
-var proxy string
 
 func main() {
     if len(os.Args) < 3 {
@@ -40,7 +17,7 @@ func main() {
 	return
     }
     name := os.Args[1]
-    proxy = os.Args[2]
+    proxy := os.Args[2]
 
     manager, err := autohttprelay.NewAutoRelayManager(name, proxy)
     if err != nil {
