@@ -7,6 +7,7 @@ package autohttprelay
 import (
     "fmt"
     "net"
+    "time"
 
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
@@ -19,10 +20,17 @@ type RelayServer struct {
     Serv *session.Server
     Proxy string
     Addr string
+    Last time.Time
 }
 
 func NewRelayServer(proxy, addr string) (*RelayServer, error) {
+    rs := &RelayServer{
+	Proxy: proxy,
+	Addr: addr,
+	Last: time.Now(),
+    }
     serv, err := session.NewServer(addr, func(conn net.Conn) {
+	rs.Last = time.Now()
 	defer conn.Close()
 	pconn, err := session.Corkscrew(proxy, addr)
 	if err != nil {
@@ -34,11 +42,7 @@ func NewRelayServer(proxy, addr string) (*RelayServer, error) {
     if err != nil {
 	return nil, err
     }
-    rs := &RelayServer{
-	Serv: serv,
-	Proxy: proxy,
-	Addr: addr,
-    }
+    rs.Serv = serv
     return rs, nil
 }
 
