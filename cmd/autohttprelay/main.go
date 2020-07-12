@@ -8,7 +8,6 @@ import (
     "fmt"
     "net"
     "os"
-    "strings"
 
     "github.com/hshimamoto/go-autohttprelay"
     "github.com/vishvananda/netlink"
@@ -34,7 +33,6 @@ func dummyIP(ip net.IP) {
 
 var dummy string
 var proxy string
-var proxyip string
 
 func main() {
     if len(os.Args) < 3 {
@@ -43,26 +41,12 @@ func main() {
     }
     name := os.Args[1]
     proxy = os.Args[2]
-    a := strings.Split(proxy, ":")
-    proxyip = a[0]
-
-    dummy = "autohttprelay"
-    _, err := autohttprelay.NewDummyDevice(dummy)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
 
     manager, err := autohttprelay.NewAutoRelayManager(name, proxy)
     if err != nil {
 	fmt.Println(err)
 	return
     }
-    manager.SetHandler(func(syn autohttprelay.SYNPacket) {
-	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
-	dummyIP(syn.IP)
-	manager.AddServer(syn.IP, syn.Port)
-    })
     err = manager.Prepare()
     if err != nil {
 	fmt.Println(err)

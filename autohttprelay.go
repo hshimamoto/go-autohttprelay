@@ -156,9 +156,8 @@ type AutoRelayManager struct {
     inf string
     proxy string
     proxyip string
-}
-
-func defAutoRelayHandler(syn SYNPacket) {
+    dummy string
+    link netlink.Link
 }
 
 func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
@@ -166,12 +165,21 @@ func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
     manager.servers = []*RelayServer{}
     manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
-    manager.handler = defAutoRelayHandler
+    manager.handler = manager.defAutoRelayHandler
     manager.inf = inf;
     manager.proxy = proxy
+    manager.dummy = "autohttprelay"
     a := strings.Split(proxy, ":")
     manager.proxyip = a[0]
     return manager, nil
+}
+
+func (manager *AutoRelayManager)defAutoRelayHandler(syn SYNPacket) {
+    // add dummy IP
+    addr, _ := netlink.ParseAddr(syn.IP.String() + "/32")
+    netlink.AddrAdd(manager.link, addr)
+    // launch server
+    manager.AddServer(syn.IP, syn.Port)
 }
 
 func (manager *AutoRelayManager)SetHandler(handler func(SYNPacket)) {
@@ -179,6 +187,11 @@ func (manager *AutoRelayManager)SetHandler(handler func(SYNPacket)) {
 }
 
 func (manager *AutoRelayManager)Prepare() error {
+    link, err := NewDummyDevice(manager.dummy)
+    if err != nil {
+	return err
+    }
+    manager.link = link
     if err := StartSYNCapture(manager.inf, manager.pipe); err != nil {
 	return err
     }
