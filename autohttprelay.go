@@ -21,13 +21,18 @@ type RelayServer struct {
     Serv *session.Server
     Proxy string
     Addr string
+    IP net.IP
+    Port layers.TCPPort
     Last time.Time
 }
 
-func NewRelayServer(proxy, addr string) (*RelayServer, error) {
+func NewRelayServer(proxy string, ip net.IP, port layers.TCPPort) (*RelayServer, error) {
+    addr := fmt.Sprintf("%s:%d", ip, port)
     rs := &RelayServer{
 	Proxy: proxy,
 	Addr: addr,
+	IP: ip,
+	Port: port,
 	Last: time.Now(),
     }
     serv, err := session.NewServer(addr, func(conn net.Conn) {

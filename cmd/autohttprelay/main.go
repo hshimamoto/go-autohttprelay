@@ -80,16 +80,6 @@ func initDummy() {
 
 var fwds []*autohttprelay.RelayServer = []*autohttprelay.RelayServer{}
 
-func addFwdServer(addr string) {
-    fwd, err := autohttprelay.NewRelayServer(proxy, addr)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    fwds = append(fwds, fwd)
-    go fwd.Run()
-}
-
 func process(ip net.IP, port layers.TCPPort) {
     addr := fmt.Sprintf("%s:%d", ip, port)
     for _, fwd := range fwds {
@@ -99,7 +89,13 @@ func process(ip net.IP, port layers.TCPPort) {
     }
     fmt.Printf(" launch %s:%s\n", ip, port)
     dummyIP(ip)
-    addFwdServer(addr)
+    fwd, err := autohttprelay.NewRelayServer(proxy, ip, port)
+    if err != nil {
+	fmt.Println(err)
+	return
+    }
+    fwds = append(fwds, fwd)
+    go fwd.Run()
 }
 
 var dummy string
