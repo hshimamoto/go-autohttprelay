@@ -53,17 +53,16 @@ func main() {
 	return
     }
 
-    var manager *autohttprelay.AutoRelayManager
-
-    manager, err = autohttprelay.NewAutoRelayManager(name, proxy, func(syn autohttprelay.SYNPacket) {
-	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
-	dummyIP(syn.IP)
-	manager.AddServer(syn.IP, syn.Port)
-    })
+    manager, err := autohttprelay.NewAutoRelayManager(name, proxy)
     if err != nil {
 	fmt.Println(err)
 	return
     }
+    manager.SetHandler(func(syn autohttprelay.SYNPacket) {
+	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
+	dummyIP(syn.IP)
+	manager.AddServer(syn.IP, syn.Port)
+    })
     err = manager.Prepare()
     if err != nil {
 	fmt.Println(err)

@@ -158,17 +158,24 @@ type AutoRelayManager struct {
     proxyip string
 }
 
-func NewAutoRelayManager(inf, proxy string, handler func(SYNPacket)) (*AutoRelayManager, error) {
+func defAutoRelayHandler(syn SYNPacket) {
+}
+
+func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
     manager := &AutoRelayManager{}
     manager.servers = []*RelayServer{}
     manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
-    manager.handler = handler
+    manager.handler = defAutoRelayHandler
     manager.inf = inf;
     manager.proxy = proxy
     a := strings.Split(proxy, ":")
     manager.proxyip = a[0]
     return manager, nil
+}
+
+func (manager *AutoRelayManager)SetHandler(handler func(SYNPacket)) {
+    manager.handler = handler
 }
 
 func (manager *AutoRelayManager)Prepare() error {
