@@ -57,17 +57,11 @@ func dummyIP(ip net.IP) {
 }
 
 func initDummy() {
-    dmy := &netlink.Dummy{}
-    dmy.Name = dummy
-    netlink.LinkAdd(dmy)
-    netlink.LinkSetUp(dmy)
-
-    link, err := netlink.LinkByName(dummy)
+    link, err := autohttprelay.NewDummyDevice(dummy)
     if err != nil {
 	fmt.Println(err)
 	return
     }
-    fmt.Println(link)
 
     addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
     if err != nil {

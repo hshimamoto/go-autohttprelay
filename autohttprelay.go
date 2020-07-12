@@ -12,6 +12,7 @@ import (
     "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
     "github.com/google/gopacket/pcap"
+    "github.com/vishvananda/netlink"
     "github.com/hshimamoto/go-iorelay"
     "github.com/hshimamoto/go-session"
 )
@@ -99,4 +100,20 @@ func StartSYNCapture(name string, pipe chan SYNPacket) error {
 	}
     }()
     return nil
+}
+
+func NewDummyDevice(name string) (netlink.Link, error) {
+    dmy := &netlink.Dummy{}
+    dmy.Name = name
+    // add dummy device anyway
+    netlink.LinkAdd(dmy)
+    netlink.LinkSetUp(dmy)
+
+    // check it
+    link, err := netlink.LinkByName(name)
+    if err != nil {
+	return nil, err
+    }
+
+    return link, nil
 }
