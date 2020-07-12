@@ -11,7 +11,6 @@ import (
     "strings"
 
     "github.com/hshimamoto/go-autohttprelay"
-    "github.com/google/gopacket/layers"
     "github.com/vishvananda/netlink"
 )
 
@@ -63,26 +62,6 @@ func initDummy() {
     }
 }
 
-var fwds []*autohttprelay.RelayServer = []*autohttprelay.RelayServer{}
-
-func process(ip net.IP, port layers.TCPPort) {
-    addr := fmt.Sprintf("%s:%d", ip, port)
-    for _, fwd := range fwds {
-	if fwd.Addr == addr {
-	    return
-	}
-    }
-    fmt.Printf(" launch %s:%s\n", ip, port)
-    dummyIP(ip)
-    fwd, err := autohttprelay.NewRelayServer(proxy, ip, port)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    fwds = append(fwds, fwd)
-    go fwd.Run()
-}
-
 var dummy string
 var proxy string
 var proxyip string
@@ -100,10 +79,13 @@ func main() {
     dummy = "autohttprelay"
     initDummy()
 
+    var manager *autohttprelay.AutoRelayManager
+
     manager, err := autohttprelay.NewAutoRelayManager(name, func(syn autohttprelay.SYNPacket) {
 	fmt.Printf("->%s:%s\n", syn.IP, syn.Port)
 	if isGlobal(syn.IP) {
-	    process(syn.IP, syn.Port)
+	    dummyIP(syn.IP)
+	    manager.AddServer(proxy, syn.IP, syn.Port)
 	}
     })
     if err != nil {

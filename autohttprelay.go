@@ -153,3 +153,18 @@ func (manager *AutoRelayManager)Run() {
 	manager.handler(syn)
     }
 }
+
+func (manager *AutoRelayManager)AddServer(proxy string, ip net.IP, port layers.TCPPort) {
+    addr := fmt.Sprintf("%s:%d", ip, port)
+    for _, server := range manager.servers {
+	if server.Addr == addr {
+	    return
+	}
+    }
+    server, err := NewRelayServer(proxy, ip, port)
+    if err != nil {
+	return
+    }
+    manager.servers = append(manager.servers, server)
+    go server.Run()
+}
