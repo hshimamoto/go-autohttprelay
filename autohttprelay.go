@@ -17,16 +17,25 @@ import (
     "github.com/hshimamoto/go-session"
 )
 
+type RelayIP struct {
+    IP net.IP
+    Last time.Time
+}
+
+func (rip *RelayIP)String() string {
+    return rip.IP.String()
+}
+
 type RelayServer struct {
     Serv *session.Server
     Proxy string
     Addr string
-    IP net.IP
+    IP *RelayIP
     Port layers.TCPPort
     Last time.Time
 }
 
-func NewRelayServer(proxy string, ip net.IP, port layers.TCPPort) (*RelayServer, error) {
+func NewRelayServer(proxy string, ip *RelayIP, port layers.TCPPort) (*RelayServer, error) {
     addr := fmt.Sprintf("%s:%d", ip, port)
     rs := &RelayServer{
 	Proxy: proxy,
@@ -37,6 +46,7 @@ func NewRelayServer(proxy string, ip net.IP, port layers.TCPPort) (*RelayServer,
     }
     serv, err := session.NewServer(addr, func(conn net.Conn) {
 	rs.Last = time.Now()
+	rs.IP.Last = time.Now()
 	defer conn.Close()
 	pconn, err := session.Corkscrew(proxy, addr)
 	if err != nil {
@@ -130,6 +140,7 @@ func NewDummyDevice(name string) (netlink.Link, error) {
 
 type AutoRelayManager struct {
     servers []*RelayServer
+    ips []*RelayIP
     pipe chan SYNPacket
     handler func(SYNPacket)
 }
@@ -137,6 +148,7 @@ type AutoRelayManager struct {
 func NewAutoRelayManager(inf string, handler func(SYNPacket)) (*AutoRelayManager, error) {
     manager := &AutoRelayManager{}
     manager.servers = []*RelayServer{}
+    manager.ips = []*RelayIP{}
     manager.pipe = make(chan SYNPacket)
     manager.handler = handler
     if err := StartSYNCapture(inf, manager.pipe); err != nil {
@@ -161,7 +173,8 @@ func (manager *AutoRelayManager)AddServer(proxy string, ip net.IP, port layers.T
 	    return
 	}
     }
-    server, err := NewRelayServer(proxy, ip, port)
+    rip := &RelayIP{ IP: ip, Last: time.Now() }
+    server, err := NewRelayServer(proxy, rip, port)
     if err != nil {
 	return
     }
