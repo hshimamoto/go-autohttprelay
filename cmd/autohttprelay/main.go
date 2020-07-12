@@ -11,9 +11,7 @@ import (
     "strings"
 
     "github.com/hshimamoto/go-autohttprelay"
-    "github.com/google/gopacket"
     "github.com/google/gopacket/layers"
-    "github.com/google/gopacket/pcap"
     "github.com/vishvananda/netlink"
 )
 
@@ -114,54 +112,6 @@ var dummy string
 var proxy string
 var proxyip string
 
-func pcap_process(name string) {
-    ifs, err := pcap.FindAllDevs()
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    ok := false
-    for _, inf := range ifs {
-	//fmt.Println(inf)
-	if (inf.Name == name) {
-	    ok = true
-	    break
-	}
-    }
-    if !ok {
-	fmt.Println("no interface")
-	return
-    }
-
-    handle, err := pcap.OpenLive(name, 256, false, pcap.BlockForever)
-    if err != nil {
-	fmt.Println(err)
-	return
-    }
-    if err := handle.SetBPFFilter("tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn"); err != nil {
-	fmt.Println(err)
-	return
-    }
-    source := gopacket.NewPacketSource(handle, handle.LinkType())
-    for packet := range source.Packets() {
-	//fmt.Println(packet)
-	ipv4l := packet.Layer(layers.LayerTypeIPv4)
-	if ipv4l == nil {
-	    continue
-	}
-	ipv4 := ipv4l.(*layers.IPv4)
-	tcpl := packet.Layer(layers.LayerTypeTCP)
-	if tcpl == nil {
-	    continue
-	}
-	tcp := tcpl.(*layers.TCP)
-	if isGlobal(ipv4.DstIP) {
-	    fmt.Printf("%s:%s -> %s:%s\n", ipv4.SrcIP, tcp.SrcPort, ipv4.DstIP, tcp.DstPort)
-	    process(ipv4.DstIP, tcp.DstPort)
-	}
-    }
-}
-
 func main() {
     if len(os.Args) < 3 {
 	fmt.Println("pass inf proxy")
@@ -175,6 +125,21 @@ func main() {
     dummy = "autohttprelay"
     initDummy()
 
-    go pcap_process(name)
-    pcap_process("lo")
+    pipe := make(chan autohttprelay.SYNPacket)
+
+    err := autohttprelay.StartSYNCapture(name, pipe)
+    if err != nil {
+	fmt.Println(err)
+    }
+    err = autohttprelay.StartSYNCapture("lo", pipe)
+    if err != nil {
+	fmt.Println(err)
+    }
+
+    for syn := range pipe {
+	fmt.Printf("-> %s:%s\n", syn.IP, syn.Port)
+	if isGlobal(syn.IP) {
+	    process(syn.IP, syn.Port)
+	}
+    }
 }
