@@ -30,13 +30,13 @@ func (rip *RelayIP)String() string {
 type RelayServer struct {
     Serv *session.Server
     Addr string
-    IP *RelayIP
+    IP net.IP
     Port layers.TCPPort
     Last time.Time
     Connecter func(string) (net.Conn, error)
 }
 
-func NewRelayServer(ip *RelayIP, port layers.TCPPort, connecter func(string) (net.Conn, error)) (*RelayServer, error) {
+func NewRelayServer(ip net.IP, port layers.TCPPort, connecter func(string) (net.Conn, error)) (*RelayServer, error) {
     addr := fmt.Sprintf("%s:%d", ip, port)
     rs := &RelayServer{
 	Addr: addr,
@@ -47,7 +47,6 @@ func NewRelayServer(ip *RelayIP, port layers.TCPPort, connecter func(string) (ne
     }
     serv, err := session.NewServer(addr, func(conn net.Conn) {
 	rs.Last = time.Now()
-	rs.IP.Last = time.Now()
 	defer conn.Close()
 	pconn, err := rs.Connecter(addr)
 	if err != nil {
@@ -177,9 +176,6 @@ func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
 }
 
 func (manager *AutoRelayManager)defAutoRelayHandler(syn SYNPacket) {
-    // add dummy IP
-    addr, _ := netlink.ParseAddr(syn.IP.String() + "/32")
-    netlink.AddrAdd(manager.link, addr)
     // launch server
     manager.AddServer(syn.IP, syn.Port)
 }
@@ -214,10 +210,42 @@ func (manager *AutoRelayManager)Prepare() error {
 
 func (manager *AutoRelayManager)Run() {
     for syn := range manager.pipe {
-	if syn.IP.String() == manager.proxyip {
+	synip := syn.IP.String()
+	if synip == manager.proxyip {
 	    continue
 	}
+	// check dummy IP list
+	found := false
+	for _, ip := range manager.ips {
+	    if ip.IP.String() == synip {
+		found = true
+		// touch
+		ip.Last = time.Now()
+		break
+	    }
+	}
+	if found == false {
+	    // add dummy IP
+	    addr, _ := netlink.ParseAddr(synip + "/32")
+	    netlink.AddrAdd(manager.link, addr)
+	    manager.ips = append(manager.ips, &RelayIP{ IP: syn.IP, Last: time.Now() })
+	}
 	manager.handler(syn)
+	// check dummy IP expired
+	oneday := time.Now().Add(-24 * time.Hour)
+	ips := []*RelayIP{}
+	for _, ip := range manager.ips {
+	    if ip.Last.Before(oneday) {
+		addr, _ := netlink.ParseAddr(ip.IP.String() + "/32")
+		err := netlink.AddrDel(manager.link, addr)
+		if err != nil {
+		    fmt.Println(err)
+		}
+		continue
+	    }
+	    ips = append(ips, ip)
+	}
+	manager.ips = ips
     }
 }
 
@@ -228,8 +256,7 @@ func (manager *AutoRelayManager)AddServer(ip net.IP, port layers.TCPPort) {
 	    return
 	}
     }
-    rip := &RelayIP{ IP: ip, Last: time.Now() }
-    server, err := NewRelayServer(rip, port, manager.connecter)
+    server, err := NewRelayServer(ip, port, manager.connecter)
     if err != nil {
 	return
     }
