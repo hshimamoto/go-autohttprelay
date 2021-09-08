@@ -1,6 +1,6 @@
 // go-autohttprelay
 //
-// MIT License Copyright(c) 2020 Hiroshi Shimamoto
+// MIT License Copyright(c) 2020, 2021 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 package autohttprelay
 
@@ -171,7 +171,14 @@ func NewAutoRelayManager(inf, proxy string) (*AutoRelayManager, error) {
     manager.proxy = proxy
     manager.dummy = "autohttprelay"
     a := strings.Split(proxy, ":")
-    manager.proxyip = a[0]
+    ip := net.ParseIP(a[0])
+    if ip == nil {
+	ips, err := net.LookupIP(a[0])
+	if err == nil {
+	    ip = ips[0]
+	}
+    }
+    manager.proxyip = ip.String()
     return manager, nil
 }
 
